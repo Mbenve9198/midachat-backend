@@ -14,7 +14,7 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.vercel.app']  // Questo lo cambieremo dopo con il vero dominio
+    ? ['https://midachat-dashboard.onrender.com']
     : ['http://localhost:3001'],
   credentials: true
 }));
