@@ -1,5 +1,5 @@
 const OpenAI = require('openai');
-const Restaurant = require('../models/restaurant');
+const Restaurant = require('../models/Restaurant');
 const User = require('../models/User');
 const { searchPlace, getPlaceDetails } = require('../services/google/places');
 const cloudinary = require('cloudinary').v2;
