@@ -7,6 +7,9 @@ RUN npm install
 
 COPY . .
 
+RUN ls -la src/models/
+RUN ls -la src/controllers/
+
 EXPOSE 3000
 
-CMD ["npm", "start"] 
+CMD ["node", "src/server.js"] 

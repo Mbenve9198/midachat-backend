@@ -3,4 +3,5 @@ npm-debug.log
 .env
 .env.local
 .git
-.gitignore 
+.gitignore
+.DS_Store 
