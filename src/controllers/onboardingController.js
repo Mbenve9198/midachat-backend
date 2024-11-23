@@ -110,31 +110,27 @@ exports.importFromGoogle = async (req, res) => {
 exports.getImportedData = async (req, res) => {
     try {
         const userId = req.user.id;
-        console.log('Getting imported data for user:', userId);
-
-        const restaurant = await Restaurant.findOne({ 
-            owner: userId,
-            'onboarding.imported_from_google': true 
-        }).sort({ updatedAt: -1 });
-
+        console.log('Getting data for user:', userId);
+        
+        const restaurant = await Restaurant.findOne({ owner: userId });
+        console.log('Found restaurant:', restaurant);
+        
         if (!restaurant) {
-            console.log('No imported restaurant found for user:', userId);
-            return res.status(404).json({ message: 'Nessun ristorante importato trovato' });
+            return res.status(404).json({ message: 'Ristorante non trovato' });
         }
 
-        console.log('Found restaurant:', restaurant);
-        res.json({
+        const response = {
             name: restaurant.name,
             description: restaurant.description,
             address: restaurant.address,
-            menuUrl: restaurant.menuUrl || '',
-            contact: restaurant.contact || {},
-            google_data: restaurant.google_data || {},
-            reviews: restaurant.reviews
-        });
-
+            contact: restaurant.contact,
+            google_data: restaurant.google_data
+        };
+        console.log('Sending response:', response);
+        
+        res.json(response);
     } catch (error) {
-        console.error('Error getting imported data:', error);
+        console.error('Get imported data error:', error);
         res.status(500).json({ 
             message: 'Errore nel recupero dei dati importati',
             error: error.message 
