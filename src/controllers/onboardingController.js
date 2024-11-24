@@ -60,55 +60,51 @@ exports.searchRestaurant = async (req, res) => {
 exports.importFromGoogle = async (req, res) => {
     try {
         const { placeId } = req.body;
-        console.log('Importing place:', placeId);
+        console.log('[Import] Starting import for placeId:', placeId);
 
         const placeDetails = await placesService.getPlaceDetails(placeId);
-        console.log('Place details:', placeDetails);
+        console.log('[Import] Got place details');
 
-        // Prima elimina il ristorante esistente
-        await Restaurant.deleteOne({ owner: req.user.id });
-        console.log('Deleted existing restaurant');
+        // Elimina sia per owner che per place_id
+        await Restaurant.deleteMany({ 
+            $or: [
+                { owner: req.user.id },
+                { 'google_data.place_id': placeId }
+            ]
+        });
+        console.log('[Import] Deleted existing restaurants');
 
-        // Usa findOneAndUpdate come prima
-        const restaurant = await Restaurant.findOneAndUpdate(
-            { owner: req.user.id },
-            {
-                owner: req.user.id,
-                name: placeDetails.name,
-                description: placeDetails.editorial_summary?.overview || '',
-                address: placeDetails.formatted_address,
-                contact: {
-                    phone: placeDetails.formatted_phone_number,
-                    website: placeDetails.website
-                },
-                google_data: {
-                    place_id: placeId,
-                    rating: placeDetails.rating,
-                    reviews_count: placeDetails.user_ratings_total,
-                    types: placeDetails.types,
-                    photos: placeDetails.photos
-                },
-                reviews: {
-                    platform: 'google',
-                    url: placeDetails.review_link
-                },
-                onboarding: {
-                    imported_from_google: true,
-                    completed_steps: [1],
-                    current_step: 2
-                }
+        const restaurant = await Restaurant.create({
+            owner: req.user.id,
+            name: placeDetails.name,
+            description: placeDetails.editorial_summary?.overview || '',
+            address: placeDetails.formatted_address,
+            contact: {
+                phone: placeDetails.formatted_phone_number,
+                website: placeDetails.website
             },
-            { 
-                new: true,
-                upsert: true 
+            google_data: {
+                place_id: placeId,
+                rating: placeDetails.rating,
+                reviews_count: placeDetails.user_ratings_total,
+                types: placeDetails.types,
+                photos: placeDetails.photos
+            },
+            reviews: {
+                platform: 'google',
+                url: placeDetails.reviews_link
+            },
+            onboarding: {
+                imported_from_google: true,
+                completed_steps: [1],
+                current_step: 2
             }
-        );
-        console.log('Restaurant updated:', restaurant._id);
+        });
+        console.log('[Import] Created new restaurant:', restaurant._id);
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Import from Google failed:', error);
-        console.error(error.stack);
+        console.error('[Import] Failed:', error);
         res.status(500).json({ error: error.message });
     }
 };
