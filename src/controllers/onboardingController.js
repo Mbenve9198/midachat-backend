@@ -60,10 +60,14 @@ exports.searchRestaurant = async (req, res) => {
 exports.importFromGoogle = async (req, res) => {
     try {
         const { placeId } = req.body;
+        console.log('Importing place:', placeId);
+
         const placeDetails = await placesService.getPlaceDetails(placeId);
-        
+        console.log('Place details:', placeDetails);
+
         // Prima elimina il ristorante esistente
         await Restaurant.deleteOne({ owner: req.user.id });
+        console.log('Deleted existing restaurant');
 
         // Usa findOneAndUpdate come prima
         const restaurant = await Restaurant.findOneAndUpdate(
@@ -99,10 +103,12 @@ exports.importFromGoogle = async (req, res) => {
                 upsert: true 
             }
         );
+        console.log('Restaurant updated:', restaurant._id);
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Import error:', error);
+        console.error('Import from Google failed:', error);
+        console.error(error.stack);
         res.status(500).json({ error: error.message });
     }
 };
