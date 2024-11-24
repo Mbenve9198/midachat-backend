@@ -72,7 +72,7 @@ exports.getPlaceDetails = async (placeId) => {
         });
 
         const result = response.data.result;
-        result.review_link = `https://search.google.com/local/writereview?placeid=${placeId}`;
+        result.reviews_link = `https://search.google.com/local/writereview?placeid=${placeId}`;
 
         console.log('Full Place Details Response:', JSON.stringify(response.data, null, 2));
         return result;
