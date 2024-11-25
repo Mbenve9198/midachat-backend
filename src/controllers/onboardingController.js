@@ -242,29 +242,26 @@ async function getExistingLinks(path) {
 
 exports.updateReviews = async (req, res) => {
     try {
-        const { platform, url } = req.body;
         const userId = req.user.id;
-        
-        // Cerca il ristorante
+        const { platform, url } = req.body;
+
         const restaurant = await Restaurant.findOne({ owner: userId });
         if (!restaurant) {
-            throw new Error('Ristorante non trovato');
-        }
-        
-        if (!restaurant.name) {
-            throw new Error('Nome del ristorante mancante');
+            return res.status(404).json({ message: 'Ristorante non trovato' });
         }
 
-        // Crea short URL per le recensioni
-        const shortReviewUrl = await createShortUrl(url, restaurant.name, 'review');
+        // Genera short URL come fa per il menu
+        const shortUrl = await createShortUrl(url, restaurant.name, 'review');
 
         const updatedRestaurant = await Restaurant.findOneAndUpdate(
             { owner: userId },
             { 
                 $set: {
-                    'reviews.platform': platform,
-                    'reviews.url': url,
-                    'reviews.shortUrl': shortReviewUrl,
+                    'reviews': { 
+                        platform, 
+                        url,
+                        shortUrl
+                    },
                     'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 4])],
                     'onboarding.current_step': 5
                 }
@@ -275,10 +272,7 @@ exports.updateReviews = async (req, res) => {
         res.json(updatedRestaurant);
     } catch (error) {
         console.error('Update reviews error:', error);
-        res.status(500).json({ 
-            message: 'Errore nell\'aggiornamento delle recensioni',
-            error: error.message 
-        });
+        res.status(500).json({ message: error.message });
     }
 };
 
