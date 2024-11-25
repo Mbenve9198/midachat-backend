@@ -1,6 +1,6 @@
-const { Claude } = require('@anthropic-ai/sdk')
+const Anthropic = require('@anthropic-ai/sdk')
 
-const claude = new Claude({
+const claude = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY
 })
 
