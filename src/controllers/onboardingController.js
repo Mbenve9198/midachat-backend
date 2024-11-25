@@ -201,11 +201,13 @@ exports.updateMenu = async (req, res) => {
                     }
                 );
             }
+            // Manca la response con lo shortUrl esistente!
+            res.json({ shortUrl: restaurant.menu.shortUrl });
         } else {
-            // Crea un nuovo shortUrl solo se non esiste
+            // Crea un nuovo shortUrl
             const shortMenuUrl = await createShortUrl(menuUrl, restaurantName, 'menu');
             
-            await Restaurant.findOneAndUpdate(
+            const updatedRestaurant = await Restaurant.findOneAndUpdate(
                 { owner: userId },
                 { 
                     $set: {
@@ -214,11 +216,12 @@ exports.updateMenu = async (req, res) => {
                         'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 3])],
                         'onboarding.current_step': 4
                     }
-                }
+                },
+                { new: true }  // Ritorna il documento aggiornato
             );
-        }
 
-        res.json({ message: 'Menu aggiornato con successo' });
+            res.json({ shortUrl: shortMenuUrl });
+        }
     } catch (error) {
         console.error('Update menu error:', error);
         res.status(500).json({ 
