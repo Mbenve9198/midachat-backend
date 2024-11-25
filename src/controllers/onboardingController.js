@@ -349,11 +349,16 @@ exports.saveWelcomeMessages = async (req, res) => {
         const userId = req.user.id;
         const { messages } = req.body;
 
-        const restaurant = await Restaurant.findOneAndUpdate(
+        if (!messages) {
+            throw new Error('Messaggi non forniti');
+        }
+
+        // Modifica qui, ispirandoci alla pagina 4
+        const updatedRestaurant = await Restaurant.findOneAndUpdate(
             { owner: userId },
             { 
                 $set: {
-                    welcome_messages: messages,
+                    'messages.welcome': messages,
                     'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 5])],
                     'onboarding.current_step': 6
                 }
@@ -361,15 +366,11 @@ exports.saveWelcomeMessages = async (req, res) => {
             { new: true }
         );
 
-        if (!restaurant) {
-            return res.status(404).json({ message: 'Ristorante non trovato' });
-        }
-
-        res.json(restaurant);
+        res.json(updatedRestaurant);
     } catch (error) {
         console.error('Save welcome messages error:', error);
         res.status(500).json({
-            message: 'Errore nel salvataggio dei messaggi di benvenuto',
+            message: 'Errore nel salvataggio dei messaggi',
             error: error.message
         });
     }
@@ -378,57 +379,35 @@ exports.saveWelcomeMessages = async (req, res) => {
 exports.generateReviewMessages = async (req, res) => {
     try {
         const userId = req.user.id;
-        
         const restaurant = await Restaurant.findOne({ owner: userId });
+        
         if (!restaurant) {
-            throw new Error('Ristorante non trovato');
+            return res.status(404).json({ 
+                message: 'Ristorante non trovato' 
+            });
         }
 
-        const name = restaurant.name;
-        const reviewUrl = restaurant.reviews?.shortUrl || restaurant.reviews?.url;
-        const platform = restaurant.reviews?.platform || 'Google';
+        if (!restaurant.reviews?.shortUrl) {
+            return res.status(400).json({ 
+                message: 'Link recensioni non trovato. Completa prima il passo precedente.',
+                error: 'REVIEW_URL_MISSING'
+            });
+        }
 
         const messages = {};
-        const languages = {
+        for (const [code, language] of Object.entries({
             it: 'italiano',
             en: 'english',
-            es: 'español',
+            de: 'deutsch',
             fr: 'français',
-            de: 'deutsch'
-        };
-
-        for (const [code, language] of Object.entries(languages)) {
-            try {
-                console.log(`Generating ${language} review message...`);
-                messages[code] = await generateReviewMessage(
-                    name,
-                    platform,
-                    reviewUrl,
-                    language
-                );
-                console.log(`Generated ${language} review message:`, messages[code]);
-            } catch (error) {
-                console.error(`Error generating ${language} review message:`, error);
-                throw new Error(`Errore nella generazione del messaggio di recensione in ${language}: ${error.message}`);
-            }
+            es: 'español'
+        })) {
+            messages[code] = await generateReviewMessage(
+                language,
+                restaurant.name,
+                restaurant.reviews.shortUrl  // Aggiungiamo lo shortUrl
+            );
         }
-
-        const update = {
-            $set: {
-                messages: {
-                    ...restaurant.messages,
-                    review: messages
-                },
-                'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 6])],
-                'onboarding.current_step': 7
-            }
-        };
-
-        await Restaurant.findOneAndUpdate(
-            { owner: userId },
-            update,
-            { new: true }
-        );
 
         res.json(messages);
     } catch (error) {
@@ -450,18 +429,20 @@ exports.saveReviewMessages = async (req, res) => {
             throw new Error('Messaggi non forniti');
         }
 
-        await Restaurant.findOneAndUpdate(
+        // Modifica qui, ispirandoci alla pagina 4
+        const updatedRestaurant = await Restaurant.findOneAndUpdate(
             { owner: userId },
             { 
                 $set: {
                     'messages.review': messages,
-                    'onboarding.completed': true,
-                    'onboarding.completed_steps': [...Array(7).keys()].map(i => i + 1)
+                    'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 6])],
+                    'onboarding.current_step': 7
                 }
-            }
+            },
+            { new: true }
         );
 
-        res.json({ success: true });
+        res.json(updatedRestaurant);
     } catch (error) {
         console.error('Save review messages error:', error);
         res.status(500).json({

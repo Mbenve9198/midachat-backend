@@ -41,7 +41,7 @@ const generateWelcomeMessage = async (language, restaurantName, menuUrl) => {
   }
 }
 
-const generateReviewMessage = async (language, restaurantName) => {
+const generateReviewMessage = async (language, restaurantName, reviewShortUrl) => {
   try {
     const response = await claude.messages.create({
       model: 'claude-3-sonnet-20240229',
@@ -53,10 +53,12 @@ const generateReviewMessage = async (language, restaurantName) => {
         - Iniziare con "Ciao {{firstName}}," (mantenendo esattamente questa sintassi per il placeholder)
         - Essere cortese e non troppo insistente
         - Ringraziare il cliente per la visita
-        - Chiedere gentilmente di lasciare una recensione su Google
+        - Chiedere gentilmente di lasciare una recensione
+        - Includere questo link per le recensioni: ${reviewShortUrl}
         - Non superare i 200 caratteri
-        - Non includere emoji
-        - Mantenere ESATTAMENTE la sintassi {{firstName}} senza modificarla`
+        - Includi emoji simpatiche senza esagerare
+        - Mantenere ESATTAMENTE la sintassi {{firstName}} senza modificarla
+        - IMPORTANTE: Il messaggio deve essere in ${language}`
       }]
     })
 
