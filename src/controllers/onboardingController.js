@@ -184,44 +184,33 @@ exports.updateMenu = async (req, res) => {
         const { menuUrl, restaurantName } = req.body;
         const userId = req.user.id;
         
+        // Cerca il ristorante
         const restaurant = await Restaurant.findOne({ owner: userId });
-        
-        // Se c'è già uno shortUrl per il menu, non crearne uno nuovo
-        if (restaurant.menu?.shortUrl) {
-            // Aggiorna solo l'URL originale se è diverso
-            if (restaurant.menu.url !== menuUrl) {
-                await Restaurant.findOneAndUpdate(
-                    { owner: userId },
-                    { 
-                        $set: {
-                            'menu.url': menuUrl,
-                            'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 3])],
-                            'onboarding.current_step': 4
-                        }
-                    }
-                );
-            }
-            // Manca la response con lo shortUrl esistente!
-            res.json({ shortUrl: restaurant.menu.shortUrl });
-        } else {
-            // Crea un nuovo shortUrl
-            const shortMenuUrl = await createShortUrl(menuUrl, restaurantName, 'menu');
-            
-            const updatedRestaurant = await Restaurant.findOneAndUpdate(
-                { owner: userId },
-                { 
-                    $set: {
-                        'menu.url': menuUrl,
-                        'menu.shortUrl': shortMenuUrl,
-                        'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 3])],
-                        'onboarding.current_step': 4
-                    }
-                },
-                { new: true }  // Ritorna il documento aggiornato
-            );
-
-            res.json({ shortUrl: shortMenuUrl });
+        if (!restaurant) {
+            throw new Error('Ristorante non trovato');
         }
+        
+        if (!restaurant.name) {
+            throw new Error('Nome del ristorante mancante');
+        }
+
+        // Crea short URL per il menu
+        const shortMenuUrl = await createShortUrl(menuUrl, restaurant.name, 'menu');
+
+        const updatedRestaurant = await Restaurant.findOneAndUpdate(
+            { owner: userId },
+            { 
+                $set: {
+                    'menu.url': menuUrl,
+                    'menu.shortUrl': shortMenuUrl,
+                    'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 3])],
+                    'onboarding.current_step': 4
+                }
+            },
+            { new: true }
+        );
+
+        res.json(updatedRestaurant);
     } catch (error) {
         console.error('Update menu error:', error);
         res.status(500).json({ 
@@ -296,47 +285,63 @@ exports.updateReviews = async (req, res) => {
 // Genera i messaggi di benvenuto
 exports.generateWelcomeMessages = async (req, res) => {
     try {
-        const userId = req.user.id
-        const restaurant = await Restaurant.findOne({ owner: userId })
+        const userId = req.user.id;
+        const restaurant = await Restaurant.findOne({ owner: userId });
         
+        // Validazione più robusta
         if (!restaurant) {
-            return res.status(404).json({ error: 'Ristorante non trovato' })
+            return res.status(404).json({ 
+                message: 'Ristorante non trovato',
+                error: 'RESTAURANT_NOT_FOUND'
+            });
         }
 
-        const restaurantName = restaurant.name
-        // Prendiamo lo shortUrl dal campo menu
-        const menuUrl = restaurant.menu?.shortUrl
-
-        if (!menuUrl) {
-            return res.status(400).json({ error: 'Menu URL non trovato' })
+        if (!restaurant.menu?.shortUrl) {
+            return res.status(400).json({ 
+                message: 'Menu URL non trovato. Completa prima il passo precedente.',
+                error: 'MENU_URL_MISSING'
+            });
         }
 
-        const languageMap = {
-            'it': 'italiano',
-            'en': 'english',
-            'de': 'deutsch',
-            'fr': 'français',
-            'es': 'español'
+        if (!restaurant.name) {
+            return res.status(400).json({ 
+                message: 'Nome ristorante mancante',
+                error: 'RESTAURANT_NAME_MISSING'
+            });
         }
 
-        const messages = {}
-        
-        for (const [key, language] of Object.entries(languageMap)) {
+        const messages = {};
+        for (const [code, language] of Object.entries({
+            it: 'italiano',
+            en: 'english',
+            de: 'deutsch',
+            fr: 'français',
+            es: 'español'
+        })) {
             try {
-                console.log(`Generating ${language} welcome message with menu URL: ${menuUrl}`)
-                messages[key] = await generateWelcomeMessage(language, restaurantName, menuUrl)
+                messages[code] = await generateWelcomeMessage(
+                    language,
+                    restaurant.name,
+                    restaurant.menu.shortUrl
+                );
             } catch (error) {
-                console.error(`Error generating ${language} message:`, error)
-                throw new Error(`Errore nella generazione del messaggio in ${language}: ${error.message}`)
+                console.error(`Error generating ${language} message:`, error);
+                return res.status(500).json({
+                    message: `Errore nella generazione del messaggio in ${language}`,
+                    error: error.message
+                });
             }
         }
 
-        res.json(messages)
+        res.json(messages);
     } catch (error) {
-        console.error('Generate welcome messages error:', error)
-        res.status(500).json({ error: error.message })
+        console.error('Generate welcome messages error:', error);
+        res.status(500).json({
+            message: 'Errore nella generazione dei messaggi',
+            error: error.message
+        });
     }
-}
+};
 
 // Salva i messaggi di benvenuto
 exports.saveWelcomeMessages = async (req, res) => {

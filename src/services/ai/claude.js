@@ -6,6 +6,12 @@ const claude = new Anthropic({
 
 const generateWelcomeMessage = async (language, restaurantName, menuUrl) => {
   try {
+    console.log('Generating welcome message with:', { language, restaurantName, menuUrl });
+    
+    if (!language || !restaurantName || !menuUrl) {
+      throw new Error('Missing required parameters');
+    }
+
     const response = await claude.messages.create({
       model: 'claude-3-sonnet-20240229',
       max_tokens: 500,
@@ -23,6 +29,10 @@ const generateWelcomeMessage = async (language, restaurantName, menuUrl) => {
         - IMPORTANTE: Il messaggio deve essere in ${language}`
       }]
     })
+
+    if (!response?.content?.[0]?.text) {
+      throw new Error('Invalid response from Claude');
+    }
 
     return response.content[0].text
   } catch (error) {
