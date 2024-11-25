@@ -4,7 +4,7 @@ const claude = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY
 })
 
-const generateWelcomeMessage = async (language, restaurantName) => {
+const generateWelcomeMessage = async (language, restaurantName, menuUrl) => {
   try {
     const response = await claude.messages.create({
       model: 'claude-3-sonnet-20240229',
@@ -15,11 +15,12 @@ const generateWelcomeMessage = async (language, restaurantName) => {
         Il messaggio deve:
         - Iniziare con "Ciao {{firstName}}," (mantenendo esattamente questa sintassi per il placeholder)
         - Essere amichevole e professionale
-        - Ringraziare il cliente per aver contattato il ristorante
-        - Spiegare che questo è un sistema automatico per prenotazioni e recensioni
+        - Ringraziare il cliente per aver scelto il ristorante
+        - Includere questo link al menu digitale: ${menuUrl}
         - Non superare i 200 caratteri
-        - Non includere emoji
-        - Mantenere ESATTAMENTE la sintassi {{firstName}} senza modificarla`
+        - Includere emoji pertinenti senza esagerare
+        - Mantenere ESATTAMENTE la sintassi {{firstName}} senza modificarla
+        - IMPORTANTE: Il messaggio deve essere in ${language}`
       }]
     })
 

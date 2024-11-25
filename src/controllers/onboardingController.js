@@ -294,15 +294,20 @@ exports.updateReviews = async (req, res) => {
 exports.generateWelcomeMessages = async (req, res) => {
     try {
         const userId = req.user.id
-        const restaurant = await Restaurant.findOne({ userId })
+        const restaurant = await Restaurant.findOne({ owner: userId })
         
         if (!restaurant) {
             return res.status(404).json({ error: 'Ristorante non trovato' })
         }
 
         const restaurantName = restaurant.name
+        // Prendiamo lo shortUrl dal campo menu
+        const menuUrl = restaurant.menu?.shortUrl
 
-        // Mappa corretta delle lingue
+        if (!menuUrl) {
+            return res.status(400).json({ error: 'Menu URL non trovato' })
+        }
+
         const languageMap = {
             'it': 'italiano',
             'en': 'english',
@@ -315,8 +320,8 @@ exports.generateWelcomeMessages = async (req, res) => {
         
         for (const [key, language] of Object.entries(languageMap)) {
             try {
-                console.log(`Generating ${language} welcome message...`)
-                messages[key] = await generateWelcomeMessage(language, restaurantName)
+                console.log(`Generating ${language} welcome message with menu URL: ${menuUrl}`)
+                messages[key] = await generateWelcomeMessage(language, restaurantName, menuUrl)
             } catch (error) {
                 console.error(`Error generating ${language} message:`, error)
                 throw new Error(`Errore nella generazione del messaggio in ${language}: ${error.message}`)
