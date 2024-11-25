@@ -349,11 +349,12 @@ exports.saveWelcomeMessages = async (req, res) => {
         const userId = req.user.id;
         const { messages } = req.body;
 
-        if (!messages) {
-            throw new Error('Messaggi non forniti');
+        const restaurant = await Restaurant.findOne({ owner: userId });
+        if (!restaurant) {
+            return res.status(404).json({ message: 'Ristorante non trovato' });
         }
 
-        // Modifica qui, ispirandoci alla pagina 4
+        // Aggiorniamo come nella pagina 4
         const updatedRestaurant = await Restaurant.findOneAndUpdate(
             { owner: userId },
             { 
@@ -369,10 +370,7 @@ exports.saveWelcomeMessages = async (req, res) => {
         res.json(updatedRestaurant);
     } catch (error) {
         console.error('Save welcome messages error:', error);
-        res.status(500).json({
-            message: 'Errore nel salvataggio dei messaggi',
-            error: error.message
-        });
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -425,11 +423,12 @@ exports.saveReviewMessages = async (req, res) => {
         const userId = req.user.id;
         const { messages } = req.body;
 
-        if (!messages) {
-            throw new Error('Messaggi non forniti');
+        const restaurant = await Restaurant.findOne({ owner: userId });
+        if (!restaurant) {
+            return res.status(404).json({ message: 'Ristorante non trovato' });
         }
 
-        // Modifica qui, ispirandoci alla pagina 4
+        // Aggiorniamo come nella pagina 4
         const updatedRestaurant = await Restaurant.findOneAndUpdate(
             { owner: userId },
             { 
@@ -445,9 +444,6 @@ exports.saveReviewMessages = async (req, res) => {
         res.json(updatedRestaurant);
     } catch (error) {
         console.error('Save review messages error:', error);
-        res.status(500).json({
-            message: 'Errore nel salvataggio dei messaggi',
-            error: error.message
-        });
+        res.status(500).json({ message: error.message });
     }
 }; 
