@@ -293,71 +293,34 @@ exports.updateReviews = async (req, res) => {
 // Genera i messaggi di benvenuto
 exports.generateWelcomeMessages = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.id
+        const restaurant = await Restaurant.findOne({ userId })
         
-        const restaurant = await Restaurant.findOne({ owner: userId });
         if (!restaurant) {
-            throw new Error('Ristorante non trovato');
+            return res.status(404).json({ error: 'Ristorante non trovato' })
         }
 
-        const name = restaurant.name;
-        const type = restaurant.google_data?.types?.[0] || '';
-        const description = restaurant.description;
-        const menuUrl = restaurant.menu?.shortUrl || restaurant.menu?.url;
+        const restaurantName = restaurant.name
 
-        const messages = {};
-        const languages = {
-            it: 'italiano',
-            en: 'english',
-            es: 'español',
-            fr: 'français',
-            de: 'deutsch'
-        };
-
-        for (const [code, language] of Object.entries(languages)) {
+        const messages = {}
+        const languages = ['italiano', 'english', 'deutsch', 'français', 'español']
+        
+        for (const language of languages) {
             try {
-                console.log(`Generating ${language} welcome message...`);
-                messages[code] = await claudeService.generateWelcomeMessage(
-                    name, 
-                    type, 
-                    description, 
-                    menuUrl, 
-                    language
-                );
-                console.log(`Generated ${language} message:`, messages[code]);
+                console.log(`Generating ${language} welcome message...`)
+                messages[language] = await claudeService.generateWelcomeMessage(language, restaurantName)
             } catch (error) {
-                console.error(`Error generating ${language} message:`, error);
-                throw new Error(`Errore nella generazione del messaggio in ${language}: ${error.message}`);
+                console.error(`Error generating ${language} message:`, error)
+                throw new Error(`Errore nella generazione del messaggio in ${language}: ${error.message}`)
             }
         }
 
-        // Salva i messaggi generati
-        const update = {
-            $set: {
-                messages: {
-                    ...restaurant.messages,
-                    welcome: messages
-                },
-                'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 5])],
-                'onboarding.current_step': 6
-            }
-        };
-
-        await Restaurant.findOneAndUpdate(
-            { owner: userId },
-            update,
-            { new: true }
-        );
-
-        res.json(messages);
+        res.json(messages)
     } catch (error) {
-        console.error('Generate welcome messages error:', error);
-        res.status(500).json({
-            message: 'Errore nella generazione dei messaggi di benvenuto',
-            error: error.message
-        });
+        console.error('Generate welcome messages error:', error)
+        res.status(500).json({ error: error.message })
     }
-};
+}
 
 // Salva i messaggi di benvenuto
 exports.saveWelcomeMessages = async (req, res) => {
@@ -485,4 +448,5 @@ exports.saveReviewMessages = async (req, res) => {
             error: error.message
         });
     }
+}; 
 }; 
