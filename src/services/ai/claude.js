@@ -1,74 +1,62 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const { Claude } = require('@anthropic-ai/sdk')
 
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const claude = new Claude({
+  apiKey: process.env.CLAUDE_API_KEY
+})
 
-async function generateWelcomeMessage(name, type, description, menuUrl, language) {
-    try {
-        const response = await anthropic.messages.create({
-            model: "claude-3-sonnet-20240229",
-            max_tokens: 300,
-            messages: [{
-                role: "user",
-                content: `Crea un messaggio di benvenuto per:
-                Nome ristorante: ${name}
-                Tipo: ${type}
-                Descrizione: ${description}
-                Link menu: ${menuUrl}
-                
-                REQUISITI OBBLIGATORI:
-                - In ${language}
-                - Massimo 4-5 righe
-                - DEVE iniziare con "Ciao ${firstName},"
-                - Tono accogliente e professionale
-                - DEVE includere il link al menu
-                - Usa emoji appropriate ma non eccessive
-                - NON tradurre il nome del ristorante
-                - Il link al menu deve essere su una riga separata`
-            }]
-        });
+const generateWelcomeMessage = async (language, restaurantName) => {
+  try {
+    const response = await claude.messages.create({
+      model: 'claude-3-sonnet-20240229',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `Genera un messaggio di benvenuto per un ristorante chiamato "${restaurantName}" in ${language}. 
+        Il messaggio deve:
+        - Iniziare con "Ciao {{firstName}}," (mantenendo esattamente questa sintassi per il placeholder)
+        - Essere amichevole e professionale
+        - Ringraziare il cliente per aver contattato il ristorante
+        - Spiegare che questo è un sistema automatico per prenotazioni e recensioni
+        - Non superare i 200 caratteri
+        - Non includere emoji
+        - Mantenere ESATTAMENTE la sintassi {{firstName}} senza modificarla`
+      }]
+    })
 
-        return response.content[0].text;
-    } catch (error) {
-        console.error('Claude error:', error);
-        throw error;
-    }
+    return response.content[0].text
+  } catch (error) {
+    console.error('Claude error:', error)
+    throw error
+  }
 }
 
-async function generateReviewMessage(name, platform, reviewUrl, language) {
-    try {
-        const response = await anthropic.messages.create({
-            model: "claude-3-sonnet-20240229",
-            max_tokens: 300,
-            messages: [{
-                role: "user",
-                content: `Crea un messaggio per chiedere una recensione per:
-                Nome ristorante: ${name}
-                Piattaforma: ${platform}
-                Link recensioni: ${reviewUrl}
-                
-                REQUISITI OBBLIGATORI:
-                - In ${language}
-                - Massimo 3-4 righe
-                - DEVE iniziare con "Ciao ${firstName},"
-                - Tono molto cordiale e personale
-                - DEVE includere il link recensioni
-                - Usa emoji appropriate ma non eccessive
-                - NON tradurre il nome del ristorante
-                - Il link deve essere su una riga separata
-                - Menziona che il loro feedback è importante`
-            }]
-        });
+const generateReviewMessage = async (language, restaurantName) => {
+  try {
+    const response = await claude.messages.create({
+      model: 'claude-3-sonnet-20240229',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `Genera un messaggio per richiedere una recensione per un ristorante chiamato "${restaurantName}" in ${language}.
+        Il messaggio deve:
+        - Iniziare con "Ciao {{firstName}}," (mantenendo esattamente questa sintassi per il placeholder)
+        - Essere cortese e non troppo insistente
+        - Ringraziare il cliente per la visita
+        - Chiedere gentilmente di lasciare una recensione su Google
+        - Non superare i 200 caratteri
+        - Non includere emoji
+        - Mantenere ESATTAMENTE la sintassi {{firstName}} senza modificarla`
+      }]
+    })
 
-        return response.content[0].text;
-    } catch (error) {
-        console.error('Claude error:', error);
-        throw error;
-    }
+    return response.content[0].text
+  } catch (error) {
+    console.error('Claude error:', error)
+    throw error
+  }
 }
 
 module.exports = {
-    generateWelcomeMessage,
-    generateReviewMessage
-}; 
+  generateWelcomeMessage,
+  generateReviewMessage
+} 
