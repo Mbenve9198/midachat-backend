@@ -45,8 +45,8 @@ router.post('/generate-review', authMiddleware, (req, res, next) => {
     next();
 }, generateReviewMessages);
 
-router.post('/save-review-messages', authMiddleware, (req, res, next) => {
-    console.log('Received POST request to /api/onboarding/save-review-messages');
+router.post('/review-message', authMiddleware, (req, res, next) => {
+    console.log('Received POST request to /api/onboarding/review-message');
     next();
 }, saveReviewMessages);
 
