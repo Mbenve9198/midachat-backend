@@ -8,7 +8,7 @@ const multer = require('multer');
 const { createShortUrl } = require('../utils/urlShortener');
 const axios = require('axios');
 const placesService = require('../services/google/places');
-const claudeService = require('../services/ai/claude');
+const { generateWelcomeMessage, generateReviewMessage } = require('../services/ai/claude')
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
@@ -302,13 +302,21 @@ exports.generateWelcomeMessages = async (req, res) => {
 
         const restaurantName = restaurant.name
 
+        // Mappa corretta delle lingue
+        const languageMap = {
+            'it': 'italiano',
+            'en': 'english',
+            'de': 'deutsch',
+            'fr': 'français',
+            'es': 'español'
+        }
+
         const messages = {}
-        const languages = ['italiano', 'english', 'deutsch', 'français', 'español']
         
-        for (const language of languages) {
+        for (const [key, language] of Object.entries(languageMap)) {
             try {
                 console.log(`Generating ${language} welcome message...`)
-                messages[language] = await claudeService.generateWelcomeMessage(language, restaurantName)
+                messages[key] = await generateWelcomeMessage(language, restaurantName)
             } catch (error) {
                 console.error(`Error generating ${language} message:`, error)
                 throw new Error(`Errore nella generazione del messaggio in ${language}: ${error.message}`)
@@ -379,7 +387,7 @@ exports.generateReviewMessages = async (req, res) => {
         for (const [code, language] of Object.entries(languages)) {
             try {
                 console.log(`Generating ${language} review message...`);
-                messages[code] = await claudeService.generateReviewMessage(
+                messages[code] = await generateReviewMessage(
                     name,
                     platform,
                     reviewUrl,
