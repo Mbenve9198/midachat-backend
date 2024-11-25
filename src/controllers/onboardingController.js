@@ -8,6 +8,7 @@ const multer = require('multer');
 const { createShortUrl } = require('../utils/urlShortener');
 const axios = require('axios');
 const placesService = require('../services/google/places');
+const claudeService = require('../services/ai/claude');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
@@ -299,20 +300,10 @@ exports.generateWelcomeMessages = async (req, res) => {
             throw new Error('Ristorante non trovato');
         }
 
-        // Verifica messaggi esistenti
-        const hasValidMessages = restaurant.messages?.welcome && 
-            Object.keys(restaurant.messages.welcome).length === 5 &&
-            Object.values(restaurant.messages.welcome).every(msg => msg && msg.trim() !== '');
-
-        if (hasValidMessages) {
-            return res.json(restaurant.messages.welcome);
-        }
-
-        // Estrai i dati necessari dal ristorante
         const name = restaurant.name;
-        const type = restaurant.type || 'ristorante';
+        const type = restaurant.google_data?.types?.[0] || '';
+        const description = restaurant.description;
         const menuUrl = restaurant.menu?.shortUrl || restaurant.menu?.url;
-        const description = restaurant.description || '';
 
         const messages = {};
         const languages = {
@@ -323,41 +314,16 @@ exports.generateWelcomeMessages = async (req, res) => {
             de: 'deutsch'
         };
 
-        // Genera i messaggi per ogni lingua
         for (const [code, language] of Object.entries(languages)) {
             try {
-                console.log(`Generating ${language} message...`);
-                const completion = await openai.chat.completions.create({
-                    model: "gpt-4-turbo-preview",
-                    messages: [
-                        {
-                            role: "system",
-                            content: `Sei un esperto di marketing per ristoranti. Devi generare un messaggio di benvenuto WhatsApp in ${language}. 
-                            Il messaggio deve essere professionale ma amichevole.`
-                        },
-                        {
-                            role: "user",
-                            content: `Crea un messaggio di benvenuto per:
-                            Nome: ${name}
-                            Tipo: ${type}
-                            Descrizione: ${description}
-                            Link menu: ${menuUrl}
-                            
-                            REQUISITI OBBLIGATORI:
-                            - In ${language}
-                            - Massimo 4-5 righe
-                            - Tono accogliente e professionale
-                            - DEVE includere il link al menu
-                            - Usa emoji appropriate ma non eccessive
-                            - NON tradurre il nome del ristorante
-                            - Il link al menu deve essere su una riga separata`
-                        }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 300
-                });
-
-                messages[code] = completion.choices[0].message.content.trim();
+                console.log(`Generating ${language} welcome message...`);
+                messages[code] = await claudeService.generateWelcomeMessage(
+                    name, 
+                    type, 
+                    description, 
+                    menuUrl, 
+                    language
+                );
                 console.log(`Generated ${language} message:`, messages[code]);
             } catch (error) {
                 console.error(`Error generating ${language} message:`, error);
@@ -377,7 +343,7 @@ exports.generateWelcomeMessages = async (req, res) => {
             }
         };
 
-        const updatedRestaurant = await Restaurant.findOneAndUpdate(
+        await Restaurant.findOneAndUpdate(
             { owner: userId },
             update,
             { new: true }
@@ -434,15 +400,6 @@ exports.generateReviewMessages = async (req, res) => {
             throw new Error('Ristorante non trovato');
         }
 
-        // Verifica messaggi esistenti
-        const hasValidMessages = restaurant.messages?.review && 
-            Object.keys(restaurant.messages.review).length === 5 &&
-            Object.values(restaurant.messages.review).every(msg => msg && msg.trim() !== '');
-
-        if (hasValidMessages) {
-            return res.json(restaurant.messages.review);
-        }
-
         const name = restaurant.name;
         const reviewUrl = restaurant.reviews?.shortUrl || restaurant.reviews?.url;
         const platform = restaurant.reviews?.platform || 'Google';
@@ -459,38 +416,12 @@ exports.generateReviewMessages = async (req, res) => {
         for (const [code, language] of Object.entries(languages)) {
             try {
                 console.log(`Generating ${language} review message...`);
-                const completion = await openai.chat.completions.create({
-                    model: "gpt-4-turbo-preview",
-                    messages: [
-                        {
-                            role: "system",
-                            content: `Sei un esperto di marketing per ristoranti. Devi generare un messaggio in ${language} 
-                            per chiedere una recensione su ${platform}. Il messaggio deve essere molto cordiale e personale, 
-                            ma anche professionale.`
-                        },
-                        {
-                            role: "user",
-                            content: `Crea un messaggio per chiedere una recensione per:
-                            Nome: ${name}
-                            Piattaforma: ${platform}
-                            Link recensioni: ${reviewUrl}
-                            
-                            REQUISITI OBBLIGATORI:
-                            - In ${language}
-                            - Massimo 3-4 righe
-                            - Tono molto cordiale e personale
-                            - DEVE includere il link recensioni
-                            - Usa emoji appropriate ma non eccessive
-                            - NON tradurre il nome del ristorante
-                            - Il link deve essere su una riga separata
-                            - Menziona che il loro feedback è importante`
-                        }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 300
-                });
-
-                messages[code] = completion.choices[0].message.content.trim();
+                messages[code] = await claudeService.generateReviewMessage(
+                    name,
+                    platform,
+                    reviewUrl,
+                    language
+                );
                 console.log(`Generated ${language} review message:`, messages[code]);
             } catch (error) {
                 console.error(`Error generating ${language} review message:`, error);
@@ -509,7 +440,7 @@ exports.generateReviewMessages = async (req, res) => {
             }
         };
 
-        const updatedRestaurant = await Restaurant.findOneAndUpdate(
+        await Restaurant.findOneAndUpdate(
             { owner: userId },
             update,
             { new: true }
