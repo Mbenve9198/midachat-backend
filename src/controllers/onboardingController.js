@@ -250,18 +250,14 @@ exports.updateReviews = async (req, res) => {
             return res.status(404).json({ message: 'Ristorante non trovato' });
         }
 
-        // Genera short URL come fa per il menu
+        // Genera short URL con nome ristorante e type
         const shortUrl = await createShortUrl(url, restaurant.name, 'review');
 
         const updatedRestaurant = await Restaurant.findOneAndUpdate(
             { owner: userId },
             { 
                 $set: {
-                    'reviews': { 
-                        platform, 
-                        url,
-                        shortUrl
-                    },
+                    'reviews': { platform, url, shortUrl },
                     'onboarding.completed_steps': [...new Set([...restaurant.onboarding.completed_steps, 4])],
                     'onboarding.current_step': 5
                 }
