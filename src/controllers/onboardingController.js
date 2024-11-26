@@ -243,15 +243,15 @@ async function getExistingLinks(path) {
 exports.updateReviews = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { platform, url } = req.body;
+        const { platform, url, restaurantName } = req.body;
 
         const restaurant = await Restaurant.findOne({ owner: userId });
         if (!restaurant) {
             return res.status(404).json({ message: 'Ristorante non trovato' });
         }
 
-        // Genera short URL con nome ristorante e type
-        const shortUrl = await createShortUrl(url, restaurant.name, 'review');
+        // Genera shortUrl usando il nome passato dal frontend
+        const shortUrl = await createShortUrl(url, restaurantName, 'review');
 
         const updatedRestaurant = await Restaurant.findOneAndUpdate(
             { owner: userId },
@@ -369,9 +369,18 @@ exports.generateReviewMessages = async (req, res) => {
         const userId = req.user.id;
         const restaurant = await Restaurant.findOne({ owner: userId });
         
+        // Validazione più robusta
         if (!restaurant) {
             return res.status(404).json({ 
-                message: 'Ristorante non trovato' 
+                message: 'Ristorante non trovato',
+                error: 'RESTAURANT_NOT_FOUND'
+            });
+        }
+
+        if (!restaurant.name) {
+            return res.status(400).json({ 
+                message: 'Nome ristorante mancante',
+                error: 'RESTAURANT_NAME_MISSING'
             });
         }
 
@@ -393,7 +402,7 @@ exports.generateReviewMessages = async (req, res) => {
             messages[code] = await generateReviewMessage(
                 language,
                 restaurant.name,
-                restaurant.reviews.shortUrl  // Aggiungiamo lo shortUrl
+                restaurant.reviews.shortUrl
             );
         }
 
