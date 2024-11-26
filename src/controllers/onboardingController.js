@@ -75,6 +75,13 @@ exports.importFromGoogle = async (req, res) => {
         });
         console.log('[Import] Deleted existing restaurants');
 
+        // Genera lo shortUrl per le recensioni
+        const shortUrl = await createShortUrl(
+            placeDetails.reviews_link, 
+            placeDetails.name, 
+            'review'
+        );
+
         const restaurant = await Restaurant.create({
             owner: req.user.id,
             name: placeDetails.name,
@@ -93,7 +100,8 @@ exports.importFromGoogle = async (req, res) => {
             },
             reviews: {
                 platform: 'google',
-                url: placeDetails.reviews_link
+                url: placeDetails.reviews_link,
+                shortUrl: shortUrl  // Salviamo lo shortUrl qui
             },
             onboarding: {
                 imported_from_google: true,
@@ -101,8 +109,8 @@ exports.importFromGoogle = async (req, res) => {
                 current_step: 2
             }
         });
-        console.log('[Import] Created new restaurant:', restaurant._id);
 
+        console.log('[Import] Created new restaurant:', restaurant._id);
         res.json({ success: true });
     } catch (error) {
         console.error('[Import] Failed:', error);
