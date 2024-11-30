@@ -32,33 +32,36 @@ const determineLanguage = (phoneNumber) => {
 
 exports.handleIncomingMessage = async (req, res) => {
     try {
-        console.log('📥 Webhook ricevuto:', req.body);
+        console.log('🔥 WEBHOOK WHATSAPP RICEVUTO');
+        console.log('Headers:', req.headers);
+        console.log('Body completo:', req.body);
         
-        const { Body: message, From: from } = req.body;
-        const language = determineLanguage(from);
-        
-        console.log('📝 Messaggio:', message);
-        console.log('📞 Da:', from);
-        console.log('🌍 Lingua:', language);
+        const { Body: message, From: from, ProfileName: profileName } = req.body;
+        console.log('📩 Messaggio ricevuto:', {
+            testo: message,
+            da: from,
+            nome: profileName,
+            timestamp: new Date().toISOString()
+        });
 
-        // Verifica se il messaggio inizia con "Ciao"
-        if (!message.toLowerCase().startsWith('ciao')) {
-            const errorMessages = {
-                it: "⚠️ Per ricevere il menu e le informazioni sul WiFi, invia 'Ciao' seguito dal nome del ristorante.",
-                en: "⚠️ To receive the menu and WiFi information, please send 'Hello' followed by the restaurant name."
-            };
+        // Verifica se il messaggio inizia con "Ciao" o "Hello"
+        if (!message.toLowerCase().startsWith('ciao') && !message.toLowerCase().startsWith('hello')) {
+            const errorMessage = "⚠️ Per ricevere il menu e le informazioni sul WiFi, invia 'Ciao' o 'Hello' seguito dal nome del ristorante.";
 
             await client.messages.create({
                 to: from,
-                body: errorMessages[language],
+                body: errorMessage,
                 from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`
             });
 
-            return res.status(200).send();
+            return res.status(200).send('OK');
         }
 
-        // Estrai il nome del trigger
-        const triggerName = message.slice(5).trim();
+        // Estrai il nome del trigger (rimuovi "Ciao" o "Hello")
+        const triggerName = message.toLowerCase().startsWith('ciao') ? 
+            message.slice(5).trim() : 
+            message.slice(6).trim();
+
         console.log('🔍 Ricerca ristorante con trigger:', triggerName);
 
         // Cerca il ristorante
@@ -67,83 +70,49 @@ exports.handleIncomingMessage = async (req, res) => {
         });
 
         if (!restaurant) {
-            const notFoundMessages = {
-                it: "⚠️ Ristorante non trovato. Verifica il nome o scannerizza nuovamente il QR code.",
-                en: "⚠️ Restaurant not found. Please verify the name or scan the QR code again."
-            };
-
+            const notFoundMessage = "⚠️ Ristorante non trovato. Verifica il nome o scannerizza nuovamente il QR code.";
             await client.messages.create({
                 to: from,
-                body: notFoundMessages[language],
+                body: notFoundMessage,
                 from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`
             });
 
-            return res.status(200).send();
+            return res.status(200).send('OK');
         }
 
         // Invia il messaggio di benvenuto
         await client.messages.create({
             to: from,
-            body: restaurant.messages.welcome[language],
+            body: restaurant.messages.welcome['it'], // Per ora usiamo italiano
             from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`
         });
 
-        // Calcola l'ora di invio (2 ore dopo)
-        const now = new Date();
-        const twoHoursLater = new Date(now.getTime() + (2 * 60 * 60 * 1000));
-        
-        // Converti in UTC per Twilio
-        const sendTimeUTC = new Date(twoHoursLater.toISOString());
-
-        console.log('⏰ Debug orari:', {
-            oraAttuale: now.toLocaleString('it-IT', { timeZone: 'Europe/Rome' }),
-            oraInvioLocale: twoHoursLater.toLocaleString('it-IT', { timeZone: 'Europe/Rome' }),
-            oraInvioUTC: sendTimeUTC.toISOString()
-        });
-
-        // Controlla se l'orario è fuori dalla fascia consentita (00:00-08:00 ora italiana)
-        const hourInItaly = twoHoursLater.getHours();
-        if (hourInItaly >= 0 && hourInItaly < 8) {
-            // Sposta alle 10:00 del giorno successivo
-            const tomorrow = new Date(now);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(10, 0, 0, 0);
-            sendTimeUTC = new Date(tomorrow.toISOString());
-            
-            console.log('⚠️ Orario fuori fascia, spostato a:', 
-                tomorrow.toLocaleString('it-IT', { timeZone: 'Europe/Rome' })
-            );
-        }
-
-        const scheduledMessage = await client.messages.create({
-            messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
-            to: from,
-            body: restaurant.messages.review[language],
-            from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
-            scheduleType: 'fixed',
-            sendAt: sendTimeUTC.toISOString()
-        });
-
-        console.log('✅ Messaggio schedulato:', {
-            messageId: scheduledMessage.sid,
-            status: scheduledMessage.status,
-            oraSchedulataLocale: new Date(sendTimeUTC).toLocaleString('it-IT', { timeZone: 'Europe/Rome' }),
-            oraSchedulataUTC: sendTimeUTC.toISOString()
-        });
-
-        // Verifica lo stato del messaggio schedulato
-        const scheduledMessageStatus = await client.messages(scheduledMessage.sid).fetch();
-        console.log('📊 Stato dettagliato schedulazione:', {
-            sid: scheduledMessageStatus.sid,
-            status: scheduledMessageStatus.status,
-            direction: scheduledMessageStatus.direction,
-            scheduledTime: scheduledMessageStatus.dateSent || scheduledMessageStatus.dateCreated,
-            error: scheduledMessageStatus.errorMessage
-        });
-
-        res.status(200).send();
+        res.status(200).send('OK');
     } catch (error) {
-        console.error('❌ Errore:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('❌ Errore nel webhook:', error);
+        console.error('Stack trace:', error.stack);
+        res.status(200).send('OK');
+    }
+};
+
+exports.testWhatsApp = async (req, res) => {
+    try {
+        const testMessage = await client.messages.create({
+            body: 'Test message from webhook',
+            from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+            to: 'whatsapp:+1234567890' // Sostituisci con il tuo numero
+        });
+        
+        res.json({
+            success: true,
+            messageId: testMessage.sid,
+            status: testMessage.status
+        });
+    } catch (error) {
+        console.error('Test message error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 }; 

@@ -121,6 +121,31 @@ const restaurantSchema = new mongoose.Schema({
         triggerName: String,
         qrGenerated: Boolean,
         generatedAt: Date
+    },
+    metrics: {
+        qr_scans: {
+            total: { type: Number, default: 0 },
+            daily: [{ 
+                date: Date,
+                count: Number 
+            }]
+        },
+        menu_clicks: {
+            total: { type: Number, default: 0 },
+            daily: [{ 
+                date: Date,
+                count: Number 
+            }]
+        },
+        review_clicks: {
+            total: { type: Number, default: 0 },
+            daily: [{ 
+                date: Date,
+                count: Number 
+            }]
+        },
+        current_reviews_count: { type: Number, default: 0 },
+        last_reviews_update: Date
     }
 }, {
     timestamps: true
