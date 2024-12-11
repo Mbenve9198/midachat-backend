@@ -13,6 +13,7 @@ const {
     saveReviewMessages
 } = require('../controllers/onboardingController');
 const authMiddleware = require('../middleware/auth');
+const Restaurant = require('../models/restaurant');
 
 router.post('/search-restaurant', authMiddleware, searchRestaurant);
 router.post('/import-google', authMiddleware, importFromGoogle);
@@ -49,5 +50,31 @@ router.post('/review-message', authMiddleware, (req, res, next) => {
     console.log('Received POST request to /api/onboarding/review-message');
     next();
 }, saveReviewMessages);
+
+router.get('/welcome-message', authMiddleware, async (req, res) => {
+    try {
+        const restaurant = await Restaurant.findOne({ owner: req.user.id });
+        if (!restaurant) {
+            return res.status(404).json({ message: 'Ristorante non trovato' });
+        }
+        res.json({ messages: restaurant.messages.welcome || {} });
+    } catch (error) {
+        console.error('Get welcome messages error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+router.get('/review-message', authMiddleware, async (req, res) => {
+    try {
+        const restaurant = await Restaurant.findOne({ owner: req.user.id });
+        if (!restaurant) {
+            return res.status(404).json({ message: 'Ristorante non trovato' });
+        }
+        res.json({ messages: restaurant.messages.review || {} });
+    } catch (error) {
+        console.error('Get review messages error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
 
 module.exports = router; 
