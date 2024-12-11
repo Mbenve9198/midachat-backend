@@ -70,6 +70,7 @@ async function scheduleReviewRequest(restaurant, numeroCliente, nomeCliente) {
             body: reviewMessage,
             to: numeroCliente,
             from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+            messagingServiceSid: 'MGe724ee97ad6fa6edab5f9b68c635b5f7',
             scheduleType: 'fixed',
             sendAt: sendAt.toISOString()
         };
