@@ -33,14 +33,15 @@ const determineLanguage = (phoneNumber) => {
 exports.handleIncomingMessage = async (req, res) => {
     try {
         console.log('🔥 WEBHOOK WHATSAPP RICEVUTO');
-        console.log('Headers:', req.headers);
         console.log('Body completo:', req.body);
         
         const { Body: message, From: from, ProfileName: profileName } = req.body;
+        const firstName = profileName || 'Cliente';  // Usiamo il ProfileName o "Cliente" come fallback
+        
         console.log('📩 Messaggio ricevuto:', {
             testo: message,
             da: from,
-            nome: profileName,
+            nome: firstName,
             timestamp: new Date().toISOString()
         });
 
@@ -80,10 +81,18 @@ exports.handleIncomingMessage = async (req, res) => {
             return res.status(200).send('OK');
         }
 
+        // Sostituisci i campi dinamici nel messaggio di benvenuto
+        let welcomeMessage = restaurant.messages.welcome['it']; // Per ora usiamo italiano
+        welcomeMessage = welcomeMessage
+            .replace('{{firstName}}', firstName)
+            .replace('{{restaurantName}}', restaurant.name)
+            .replace('{{menuUrl}}', restaurant.menuUrl)
+            .replace('{{wifiInfo}}', restaurant.wifi?.password || 'Non disponibile');
+
         // Invia il messaggio di benvenuto
         await client.messages.create({
             to: from,
-            body: restaurant.messages.welcome['it'], // Per ora usiamo italiano
+            body: welcomeMessage,
             from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`
         });
 
