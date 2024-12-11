@@ -44,11 +44,9 @@ function determinaLingua(numero) {
 // Funzione per schedulare la recensione
 async function scheduleReviewRequest(restaurant, numeroCliente, nomeCliente) {
     try {
-        // Determina la lingua dal numero
         const lingua = determinaLingua(numeroCliente);
         console.log('🌍 Lingua rilevata per recensione:', lingua);
 
-        // Calcola il tempo di attesa (default 2 ore)
         const tempoAttesaRecensione = restaurant.reviewDelay || 2;
         const waitTimeMs = tempoAttesaRecensione * 60 * 60 * 1000;
         
@@ -62,7 +60,6 @@ async function scheduleReviewRequest(restaurant, numeroCliente, nomeCliente) {
             oraInvioPrevista: sendAt.toISOString()
         });
 
-        // Usa il template della recensione nella lingua corretta dal database
         let reviewMessage = restaurant.messages.review[lingua] || restaurant.messages.review['en'];
         reviewMessage = reviewMessage
             .replace('{{firstName}}', nomeCliente)
@@ -73,7 +70,6 @@ async function scheduleReviewRequest(restaurant, numeroCliente, nomeCliente) {
             body: reviewMessage,
             to: numeroCliente,
             from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
-            messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
             scheduleType: 'fixed',
             sendAt: sendAt.toISOString()
         };
@@ -83,18 +79,12 @@ async function scheduleReviewRequest(restaurant, numeroCliente, nomeCliente) {
         const message = await client.messages.create(messageOptions);
         console.log(`✅ Messaggio di recensione schedulato con successo:`, {
             sid: message.sid,
-            lingua: lingua,
             scheduledTime: sendAt.toISOString()
         });
         
         return message.sid;
     } catch (error) {
-        console.error('❌ Errore nello scheduling della recensione:', {
-            message: error.message,
-            code: error.code,
-            status: error.status,
-            moreInfo: error.moreInfo
-        });
+        console.error('❌ Errore nello scheduling della recensione:', error);
         throw error;
     }
 }
