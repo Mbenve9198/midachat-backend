@@ -30,18 +30,89 @@ const determineLanguage = (phoneNumber) => {
     return COUNTRY_PREFIXES[prefix] || 'en';
 };
 
+// Funzione per determinare la lingua dal prefisso
+function determinaLingua(numero) {
+    const numeroPulito = numero.replace('whatsapp:', '');
+    if (numeroPulito.startsWith('+39')) return 'it';
+    if (numeroPulito.startsWith('+34')) return 'es';
+    if (numeroPulito.startsWith('+44')) return 'en';
+    if (numeroPulito.startsWith('+49')) return 'de';
+    if (numeroPulito.startsWith('+33')) return 'fr';
+    return 'en'; // Default a inglese se il prefisso non è riconosciuto
+}
+
+// Funzione per schedulare la recensione
+async function scheduleReviewRequest(restaurant, numeroCliente, nomeCliente) {
+    try {
+        // Determina la lingua dal numero
+        const lingua = determinaLingua(numeroCliente);
+        console.log('🌍 Lingua rilevata per recensione:', lingua);
+
+        // Calcola il tempo di attesa (default 2 ore)
+        const tempoAttesaRecensione = restaurant.reviewDelay || 2;
+        const waitTimeMs = tempoAttesaRecensione * 60 * 60 * 1000;
+        
+        const now = new Date();
+        const sendAt = new Date(now.getTime() + waitTimeMs);
+
+        console.log('⏰ Scheduling recensione:', {
+            lingua: lingua,
+            tempoAttesa: `${tempoAttesaRecensione} ore`,
+            oraAttuale: now.toISOString(),
+            oraInvioPrevista: sendAt.toISOString()
+        });
+
+        // Usa il template della recensione nella lingua corretta dal database
+        let reviewMessage = restaurant.messages.review[lingua] || restaurant.messages.review['en'];
+        reviewMessage = reviewMessage
+            .replace('{{firstName}}', nomeCliente)
+            .replace('{{restaurantName}}', restaurant.name)
+            .replace('{{reviewLink}}', restaurant.reviewLink || '#');
+
+        const messageOptions = {
+            body: reviewMessage,
+            to: numeroCliente,
+            from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+            messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
+            scheduleType: 'fixed',
+            sendAt: sendAt.toISOString()
+        };
+
+        console.log('📝 Tentativo di scheduling con opzioni:', JSON.stringify(messageOptions, null, 2));
+
+        const message = await client.messages.create(messageOptions);
+        console.log(`✅ Messaggio di recensione schedulato con successo:`, {
+            sid: message.sid,
+            lingua: lingua,
+            scheduledTime: sendAt.toISOString()
+        });
+        
+        return message.sid;
+    } catch (error) {
+        console.error('❌ Errore nello scheduling della recensione:', {
+            message: error.message,
+            code: error.code,
+            status: error.status,
+            moreInfo: error.moreInfo
+        });
+        throw error;
+    }
+}
+
 exports.handleIncomingMessage = async (req, res) => {
     try {
         console.log('🔥 WEBHOOK WHATSAPP RICEVUTO');
         console.log('Body completo:', req.body);
         
         const { Body: message, From: from, ProfileName: profileName } = req.body;
-        const firstName = profileName || 'Cliente';  // Usiamo il ProfileName o "Cliente" come fallback
+        const firstName = profileName || 'Cliente';
+        const lingua = determineLanguage(from);
         
         console.log('📩 Messaggio ricevuto:', {
             testo: message,
             da: from,
             nome: firstName,
+            lingua: lingua,
             timestamp: new Date().toISOString()
         });
 
@@ -71,30 +142,45 @@ exports.handleIncomingMessage = async (req, res) => {
         });
 
         if (!restaurant) {
-            const notFoundMessage = "⚠️ Ristorante non trovato. Verifica il nome o scannerizza nuovamente il QR code.";
+            // Usa il messaggio di errore nella lingua corretta
+            const errorMessages = {
+                it: "⚠️ Ristorante non trovato. Verifica il nome o scannerizza nuovamente il QR code.",
+                es: "⚠️ Restaurante no encontrado. Verifica el nombre o escanea nuevamente el código QR.",
+                en: "⚠️ Restaurant not found. Please verify the name or scan the QR code again.",
+                de: "⚠️ Restaurant nicht gefunden. Überprüfen Sie den Namen oder scannen Sie den QR-Code erneut.",
+                fr: "⚠️ Restaurant non trouvé. Veuillez vérifier le nom ou scanner à nouveau le code QR."
+            };
+
             await client.messages.create({
                 to: from,
-                body: notFoundMessage,
+                body: errorMessages[lingua] || errorMessages.en,
                 from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`
             });
 
             return res.status(200).send('OK');
         }
 
-        // Sostituisci i campi dinamici nel messaggio di benvenuto
-        let welcomeMessage = restaurant.messages.welcome['it']; // Per ora usiamo italiano
+        // Invia il messaggio di benvenuto nella lingua corretta
+        let welcomeMessage = restaurant.messages.welcome[lingua] || restaurant.messages.welcome['en'];
         welcomeMessage = welcomeMessage
             .replace('{{firstName}}', firstName)
             .replace('{{restaurantName}}', restaurant.name)
             .replace('{{menuUrl}}', restaurant.menuUrl)
             .replace('{{wifiInfo}}', restaurant.wifi?.password || 'Non disponibile');
 
-        // Invia il messaggio di benvenuto
         await client.messages.create({
             to: from,
             body: welcomeMessage,
             from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`
         });
+
+        // Schedula il messaggio di recensione
+        try {
+            await scheduleReviewRequest(restaurant, from, firstName);
+        } catch (error) {
+            console.error('⚠️ Errore nello scheduling della recensione:', error);
+            // Continuiamo l'esecuzione anche se lo scheduling fallisce
+        }
 
         res.status(200).send('OK');
     } catch (error) {
