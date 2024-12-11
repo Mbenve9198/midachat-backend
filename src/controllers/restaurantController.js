@@ -37,4 +37,29 @@ exports.getMyRestaurant = async (req, res) => {
             error: error.message 
         });
     }
+};
+
+exports.getRestaurantMessages = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const restaurant = await Restaurant.findOne({ owner: userId });
+
+        if (!restaurant) {
+            return res.status(404).json({ 
+                message: 'Ristorante non trovato' 
+            });
+        }
+
+        res.json({
+            welcome: restaurant.messages.welcome || {},
+            review: restaurant.messages.review || {}
+        });
+
+    } catch (error) {
+        console.error('Get messages error:', error);
+        res.status(500).json({ 
+            message: 'Errore nel recupero dei messaggi',
+            error: error.message 
+        });
+    }
 }; 
