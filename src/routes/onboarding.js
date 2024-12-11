@@ -13,7 +13,7 @@ const {
     saveReviewMessages
 } = require('../controllers/onboardingController');
 const authMiddleware = require('../middleware/auth');
-const Restaurant = require('../models/restaurant');
+const Restaurant = require('../models/Restaurant');
 
 router.post('/search-restaurant', authMiddleware, searchRestaurant);
 router.post('/import-google', authMiddleware, importFromGoogle);
