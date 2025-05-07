@@ -7,6 +7,8 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const menuRoutes = require('./routes/menu');
 const qrCodeRoutes = require('./routes/qrcode');
+const metricsRoutes = require('./routes/metrics');
+const onboardingRoutes = require('./routes/onboarding');
 
 const app = express();
 
@@ -28,6 +30,8 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/qrcode', qrCodeRoutes);
+app.use('/api/metrics', metricsRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 console.log('Routes registrate:', app._router.stack.map(r => r.route?.path).filter(Boolean));
 
 // MongoDB connection
